@@ -1,0 +1,26 @@
+# File di ambiente con dati sensibili
+.env
+
+# Backup locali
+backups/*.tar.gz
+backups/*.log
+
+# Dati persistenti dei servizi
+n8n/data/*
+!n8n/data/.gitkeep
+
+anythingllm/storage/*
+!anythingllm/storage/.gitkeep
+
+# Certificati SSL e dati Nginx Proxy Manager
+reverse-proxy/data/*
+reverse-proxy/letsencrypt/*
+
+# Log Docker
+*.log
+
+# File temporanei
+*.tmp
+*.swp
+*~
+.DS_Store
