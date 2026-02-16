@@ -1,2 +1,542 @@
-# ai-saas-stack
-Stack Docker completo per VPS Ubuntu con n8n, AnythingLLM, Nginx Proxy Manager (HTTPS automatico), backup automatici su Google Drive tramite rclone
+# 🚀 Stack AI SaaS - Deploy Automatizzato
+
+Stack Docker completo per VPS Ubuntu con **n8n**, **AnythingLLM**, **Nginx Proxy Manager** (reverse proxy con HTTPS automatico) e **backup automatici su Google Drive**.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Docker](https://img.shields.io/badge/Docker-24%2B-blue)](https://www.docker.com/)
+[![Made with ❤️](https://img.shields.io/badge/Made%20with-%E2%9D%A4%EF%B8%8F-red)](https://github.com/moldav69/ai-saas-stack)
+
+## ✨ Caratteristiche
+
+- 🔄 **n8n**: Piattaforma di automazione workflow self-hosted
+- 🤖 **AnythingLLM**: Sistema di gestione documenti e chat con AI self-hosted
+- 🔒 **Nginx Proxy Manager**: Reverse proxy con certificati SSL/TLS automatici (Let's Encrypt)
+- 💾 **Backup automatici**: Script pronti per backup giornalieri su Google Drive via rclone
+- 🔄 **Disaster Recovery**: Script di restore completo per ripristino rapido su nuovo server
+- 📦 **One-command deploy**: Basta un `docker compose up -d` dopo la configurazione
+
+## 📋 Prerequisiti
+
+### Hardware VPS Consigliato
+- **CPU**: Minimo 2 vCPU
+- **RAM**: Minimo 4 GB
+- **Storage**: Minimo 40 GB SSD
+- **Sistema Operativo**: Ubuntu 22.04 LTS o superiore
+
+### Software Richiesto
+- **Docker Engine** ≥ 24.x
+- **Docker Compose** plugin (comando `docker compose`, non `docker-compose`)
+- **rclone** per i backup su Google Drive
+
+### Dominio e DNS
+Devi avere un dominio con questi record DNS configurati:
+
+| Tipo | Nome | Valore |
+|------|------|--------|
+| A | app.miodominio.com | IP_DEL_TUO_VPS |
+| A | llm.miodominio.com | IP_DEL_TUO_VPS |
+
+**⚠️ IMPORTANTE per Let's Encrypt:**
+- Le porte 80 e 443 devono essere aperte sul firewall del VPS
+- Durante l'emissione del certificato, NON usare il proxy Cloudflare (nuvola arancione) sui record DNS
+- Dopo aver ottenuto i certificati, puoi eventualmente riattivare il proxy Cloudflare
+
+### Configurazione Firewall (UFW)
+```bash
+sudo ufw allow 22/tcp   # SSH
+sudo ufw allow 80/tcp   # HTTP (Let's Encrypt)
+sudo ufw allow 443/tcp  # HTTPS
+sudo ufw enable
+```
+
+### Configurazione rclone per Google Drive
+
+Installa rclone:
+```bash
+curl https://rclone.org/install.sh | sudo bash
+```
+
+Configura il remote Google Drive:
+```bash
+rclone config
+```
+
+Segui questi passaggi:
+1. Scegli `n` per nuovo remote
+2. Nome: `gdrive` (o quello che preferisci, ma deve corrispondere a `RCLONE_REMOTE_NAME` nel .env)
+3. Storage: Scegli `drive` per Google Drive
+4. Segui il wizard per autenticare con il tuo account Google
+
+Testa la configurazione:
+```bash
+# Crea la cartella di backup
+rclone mkdir gdrive:vps-backups
+
+# Verifica che funzioni
+rclone ls gdrive:vps-backups
+```
+
+### Raccomandazioni Sicurezza
+- **SSH**: Usa autenticazione con chiavi, disabilita login con password
+- **Firewall**: Apri SOLO le porte 22, 80, 443
+- **Aggiornamenti**: Mantieni il sistema aggiornato (`apt update && apt upgrade`)
+- **Password**: Usa password complesse e uniche per ogni servizio
+
+## 🚀 Installazione
+
+### 1. Clona la Repository
+
+```bash
+cd /opt  # o la directory che preferisci
+git clone https://github.com/moldav69/ai-saas-stack.git
+cd ai-saas-stack
+```
+
+### 2. Configura le Variabili d'Ambiente
+
+```bash
+cp .env.example .env
+nano .env
+```
+
+**Genera chiavi sicure per:**
+
+```bash
+# Per N8N_ENCRYPTION_KEY
+openssl rand -hex 32
+
+# Per JWT_SECRET (AnythingLLM)
+openssl rand -hex 32
+
+# Per ENCRYPTION_KEY (AnythingLLM)
+openssl rand -hex 32
+```
+
+Esempio di `.env` configurato:
+
+```env
+COMPOSE_PROJECT_NAME=ai_saas
+
+# n8n
+N8N_HOST=app.tuodominio.com
+N8N_PORT=5678
+N8N_PROTOCOL=https
+N8N_ENCRYPTION_KEY=a1b2c3d4e5f67890abcdef1234567890abcdef1234567890abcdef12345678
+N8N_BASIC_AUTH_ACTIVE=true
+N8N_BASIC_AUTH_USER=admin
+N8N_BASIC_AUTH_PASSWORD=TuaPasswordSicura123!
+
+# AnythingLLM
+JWT_SECRET=f9e8d7c6b5a4321098765432109876543210987654321098765432109876
+ENCRYPTION_KEY=1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab
+OPENAI_API_KEY=sk-proj-TuaChiaveOpenAI
+
+# Backup
+RCLONE_REMOTE_NAME=gdrive
+RCLONE_REMOTE_PATH=vps-backups
+BACKUP_RETENTION_DAYS=7
+```
+
+### 3. Avvia i Container
+
+```bash
+docker compose up -d
+```
+
+Verifica che tutti i container siano attivi:
+
+```bash
+docker compose ps
+```
+
+Output atteso:
+```
+NAME                   STATUS    PORTS
+nginx-proxy-manager    Up        0.0.0.0:80->80, 0.0.0.0:443->443, 0.0.0.0:81->81
+n8n                    Up
+anythingllm            Up
+```
+
+Monitora i log (CTRL+C per uscire):
+
+```bash
+docker compose logs -f
+```
+
+## 🔐 Configurazione Nginx Proxy Manager
+
+### 1. Accedi all'Interfaccia Admin
+
+Apri nel browser: `http://IP_DEL_TUO_VPS:81`
+
+**Credenziali di default:**
+- Email: `admin@example.com`
+- Password: `changeme`
+
+**⚠️ IMPORTANTE:** Cambia subito email e password dopo il primo accesso!
+
+### 2. Crea Proxy Host per n8n
+
+1. Vai su **Hosts** → **Proxy Hosts** → **Add Proxy Host**
+2. Tab **Details**:
+   - Domain Names: `app.tuodominio.com`
+   - Scheme: `http`
+   - Forward Hostname / IP: `n8n`
+   - Forward Port: `5678`
+   - Abilita: `Cache Assets`, `Block Common Exploits`, `Websockets Support`
+3. Tab **SSL**:
+   - SSL Certificate: **Request a new SSL Certificate**
+   - Abilita: `Force SSL`, `HTTP/2 Support`
+   - Email: il tuo indirizzo email
+   - Accetta i Terms of Service
+4. Clicca **Save**
+
+### 3. Crea Proxy Host per AnythingLLM
+
+Ripeti i passaggi sopra con queste differenze:
+- Domain Names: `llm.tuodominio.com`
+- Forward Hostname / IP: `anythingllm`
+- Forward Port: `3001`
+
+### 4. Verifica i Certificati
+
+Dopo qualche secondo, i certificati Let's Encrypt verranno emessi automaticamente. Verifica:
+
+- Vai su `https://app.tuodominio.com` → dovrebbe aprirsi n8n con HTTPS
+- Vai su `https://llm.tuodominio.com` → dovrebbe aprirsi AnythingLLM con HTTPS
+
+**Troubleshooting Let's Encrypt:**
+
+Se vedi errori tipo "Some challenges have failed":
+1. Verifica che i record DNS puntino all'IP corretto: `dig app.tuodominio.com`
+2. Verifica che la porta 80 sia aperta: `sudo ufw status`
+3. Verifica che NON ci sia il proxy Cloudflare attivo (nuvola grigia, non arancione)
+4. Controlla i log: `docker compose logs reverse-proxy`
+
+## 💾 Backup Automatico
+
+### Setup Backup Manuale
+
+Rendi eseguibile lo script:
+
+```bash
+chmod +x backups/backup.sh
+```
+
+Esegui un backup di test:
+
+```bash
+cd backups
+./backup.sh
+```
+
+Lo script crea questi archivi:
+- `n8n-YYYY-MM-DD-HHMM.tar.gz` → Tutti i workflow, credenziali, configurazioni n8n
+- `anythingllm-YYYY-MM-DD-HHMM.tar.gz` → Workspace, knowledge base, documenti
+- `env-YYYY-MM-DD-HHMM.tar.gz` → File .env con chiavi e configurazioni
+
+Gli archivi vengono caricati su Google Drive e i file locali più vecchi di `BACKUP_RETENTION_DAYS` giorni vengono eliminati.
+
+**⚠️ ATTENZIONE:** I backup contengono dati sensibili (chiavi API, password, dati utenti). Proteggi adeguatamente l'accesso al tuo Google Drive.
+
+### Backup Automatico con Cron
+
+Aggiungi alla crontab per backup giornaliero alle 3:00 AM:
+
+```bash
+crontab -e
+```
+
+Aggiungi questa riga (sostituisci il path):
+
+```cron
+0 3 * * * /opt/ai-saas-stack/backups/backup.sh >> /opt/ai-saas-stack/backups/backup.log 2>&1
+```
+
+Verifica i backup programmati:
+
+```bash
+crontab -l
+```
+
+Controlla il log:
+
+```bash
+tail -f /opt/ai-saas-stack/backups/backup.log
+```
+
+## 🔄 Restore / Disaster Recovery
+
+### Scenario: Ripristino su Nuovo VPS
+
+Se devi migrare o ripristinare lo stack su un nuovo server:
+
+**1. Prepara il nuovo VPS:**
+
+```bash
+# Installa Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+# Installa rclone
+curl https://rclone.org/install.sh | sudo bash
+
+# Configura rclone con lo stesso remote
+rclone config
+```
+
+**2. Clona la repository:**
+
+```bash
+cd /opt
+git clone https://github.com/moldav69/ai-saas-stack.git
+cd ai-saas-stack
+```
+
+**3. Opzionale - Crea un .env minimo (o lo ripristini dal backup):**
+
+Se vuoi ripristinare anche il file .env dal backup, puoi saltare questo passaggio.
+
+**4. Esegui il restore:**
+
+```bash
+cd backups
+chmod +x restore.sh
+
+# Restore dell'ultimo backup disponibile
+./restore.sh
+
+# Oppure restore di un backup specifico
+./restore.sh 2026-02-17-0300
+```
+
+Lo script:
+- Scarica i backup da Google Drive
+- Chiede se vuoi ripristinare anche il file .env
+- Chiede conferma prima di sovrascrivere i dati
+- Estrae i backup nelle directory corrette
+- Pulisce i file temporanei
+
+**5. Avvia i container:**
+
+```bash
+cd /opt/ai-saas-stack
+docker compose up -d
+```
+
+**6. Riconfigura Nginx Proxy Manager:**
+
+Accedi a `http://IP_NUOVO_VPS:81` e ricrea i Proxy Host per i tuoi domini (i certificati Let's Encrypt vanno riemessi perché sono legati al server).
+
+### ⚠️ Nota Importante sulle Immagini Docker
+
+L'uso di tag `:latest` nelle immagini significa che le versioni possono cambiare nel tempo.
+
+**Per un restore più fedele possibile:**
+- **NON** eseguire `docker compose pull` prima di `docker compose up -d`
+- Docker userà le immagini già presenti o scaricherà quelle disponibili al momento
+
+**Per aggiornare alle ultime versioni:**
+```bash
+docker compose pull
+docker compose up -d
+```
+
+**⚠️ Raccomandazione:** In produzione, dopo aver testato una versione stabile, fissa i tag specifici nel `docker-compose.yml`:
+
+```yaml
+# Invece di:
+image: n8nio/n8n:latest
+
+# Usa:
+image: n8nio/n8n:1.23.0
+```
+
+## 🔄 Aggiornamenti
+
+### Aggiornare i Servizi
+
+Prima di aggiornare, **esegui sempre un backup**:
+
+```bash
+cd /opt/ai-saas-stack/backups
+./backup.sh
+```
+
+Poi aggiorna le immagini:
+
+```bash
+cd /opt/ai-saas-stack
+docker compose pull
+docker compose up -d
+```
+
+Docker ricreerà solo i container con immagini aggiornate.
+
+### Monitorare gli Aggiornamenti
+
+Verifica le nuove versioni:
+- n8n: https://github.com/n8n-io/n8n/releases
+- AnythingLLM: https://github.com/Mintplex-Labs/anything-llm/releases
+- Nginx Proxy Manager: https://github.com/NginxProxyManager/nginx-proxy-manager/releases
+
+## 🔍 Diagnostica e Troubleshooting
+
+### Verificare lo Stato dei Container
+
+```bash
+docker compose ps
+```
+
+### Vedere i Log in Tempo Reale
+
+```bash
+# Tutti i servizi
+docker compose logs -f
+
+# Solo un servizio specifico
+docker compose logs -f n8n
+docker compose logs -f anythingllm
+docker compose logs -f reverse-proxy
+```
+
+### Riavviare un Servizio
+
+```bash
+docker compose restart n8n
+```
+
+### Riavviare Tutto lo Stack
+
+```bash
+docker compose restart
+```
+
+### Fermare e Rimuovere Tutto
+
+```bash
+docker compose down
+```
+
+**⚠️ ATTENZIONE:** Questo comando ferma i container ma NON elimina i dati persistenti (volumi). I tuoi dati in `n8n/data` e `anythingllm/storage` rimangono intatti.
+
+### Problemi Comuni
+
+**n8n non si connette:**
+- Verifica che il Proxy Host in Nginx Proxy Manager punti a `n8n:5678`
+- Controlla i log: `docker compose logs n8n`
+- Verifica le variabili nel .env
+
+**AnythingLLM errore di avvio:**
+- Controlla che `JWT_SECRET` ed `ENCRYPTION_KEY` siano impostati
+- Verifica permessi sulla cartella: `ls -la anythingllm/storage`
+- Log: `docker compose logs anythingllm`
+
+**Certificato SSL non si genera:**
+- Verifica DNS: `dig app.tuodominio.com`
+- Verifica che la porta 80 sia aperta: `sudo netstat -tlnp | grep :80`
+- Disattiva temporaneamente il proxy Cloudflare
+- Log: `docker compose logs reverse-proxy`
+
+## 🔒 Sicurezza
+
+### Best Practices Implementate
+
+✅ Nessuna porta dei servizi esposta direttamente su Internet (solo tramite reverse proxy)  
+✅ HTTPS obbligatorio con certificati Let's Encrypt  
+✅ Autenticazione Basic per n8n  
+✅ Chiavi di encryption uniche per ogni installazione  
+✅ Log rotation automatica (max 10MB × 3 file)  
+✅ Backup criptati su Google Drive  
+
+### Raccomandazioni Aggiuntive
+
+- **SSH**: Disabilita login con password, usa solo chiavi
+  ```bash
+  sudo nano /etc/ssh/sshd_config
+  # Imposta: PasswordAuthentication no
+  sudo systemctl restart sshd
+  ```
+
+- **Fail2Ban**: Proteggi SSH da attacchi brute-force
+  ```bash
+  sudo apt install fail2ban
+  sudo systemctl enable fail2ban
+  ```
+
+- **Aggiornamenti automatici**: Configura unattended-upgrades
+  ```bash
+  sudo apt install unattended-upgrades
+  sudo dpkg-reconfigure unattended-upgrades
+  ```
+
+- **Monitoraggio**: Considera l'installazione di strumenti come Netdata o Prometheus
+
+## 📁 Cosa Contiene Ogni Backup
+
+| File | Contenuto |
+|------|-----------|
+| `n8n-*.tar.gz` | Workflow, credenziali, configurazioni, esecuzioni storiche |
+| `anythingllm-*.tar.gz` | Workspace, documenti caricati, vector database, chat history |
+| `env-*.tar.gz` | Tutte le variabili d'ambiente incluse chiavi API e password |
+
+**⚠️ I backup contengono dati sensibili:** Proteggi l'accesso al tuo Google Drive e considera l'uso di encryption aggiuntiva per dati critici.
+
+## 🏗️ Architettura
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Internet                               │
+└────────────────┬────────────────────────────────────────────┘
+                 │
+                 │ Port 80/443
+                 ▼
+┌─────────────────────────────────────────────────────────────┐
+│            Nginx Proxy Manager                              │
+│         (Reverse Proxy + Let's Encrypt)                     │
+│                Port 81 (Admin UI)                           │
+└────────────┬───────────────────────────┬────────────────────┘
+             │                           │
+             │ app.domain.com            │ llm.domain.com
+             │ → n8n:5678               │ → anythingllm:3001
+             ▼                           ▼
+┌─────────────────────┐      ┌──────────────────────────────┐
+│       n8n           │      │      AnythingLLM             │
+│  (Workflow Engine)  │      │  (Document AI Chat)          │
+│                     │      │                              │
+│  Volume:            │      │  Volume:                     │
+│  ./n8n/data         │      │  ./anythingllm/storage       │
+└─────────────────────┘      └──────────────────────────────┘
+             │                           │
+             └───────────┬───────────────┘
+                         │
+                         ▼
+                ┌────────────────┐
+                │  Docker Network│
+                │  ai_saas_net   │
+                └────────────────┘
+```
+
+## 📞 Supporto
+
+Per problemi specifici ai servizi:
+- n8n: https://community.n8n.io/
+- AnythingLLM: https://github.com/Mintplex-Labs/anything-llm/issues
+- Nginx Proxy Manager: https://github.com/NginxProxyManager/nginx-proxy-manager/issues
+
+## 🤝 Contribuire
+
+Contributi, segnalazioni di bug e richieste di funzionalità sono benvenuti! Sentiti libero di aprire una issue o una pull request.
+
+## 📝 Licenza
+
+Questo stack utilizza software open source. Verifica le licenze individuali:
+- n8n: Apache 2.0 (Self-hosted) / Proprietaria (Cloud)
+- AnythingLLM: MIT License
+- Nginx Proxy Manager: MIT License
+
+---
+
+**Creato con ❤️ per deployment rapidi e affidabili**
+
+Se questo progetto ti è stato utile, lascia una ⭐ su GitHub!
