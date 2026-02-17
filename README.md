@@ -181,7 +181,31 @@ RCLONE_REMOTE_PATH=vps-backups
 BACKUP_RETENTION_DAYS=7
 ```
 
-### 3. Avvia i Container
+### 3. Configura i Permessi delle Directory
+
+**⚠️ IMPORTANTE:** I container girano con l'utente UID 1000, quindi le directory di storage devono avere i permessi corretti:
+
+```bash
+# Imposta i permessi corretti per n8n
+sudo chown -R 1000:1000 n8n/data
+sudo chmod -R 755 n8n/data
+
+# Imposta i permessi corretti per AnythingLLM
+sudo chown -R 1000:1000 anythingllm/storage
+sudo chmod -R 755 anythingllm/storage
+
+# Verifica i permessi
+ls -la n8n/data
+ls -la anythingllm/storage
+```
+
+**Output atteso:**
+```
+drwxr-xr-x ... 1000 1000 ... n8n/data
+drwxr-xr-x ... 1000 1000 ... anythingllm/storage
+```
+
+### 4. Avvia i Container
 
 ```bash
 docker compose up -d
@@ -207,9 +231,17 @@ Monitora i log (CTRL+C per uscire):
 docker compose logs -f
 ```
 
+**Se vedi container in stato "Restarting"**, consulta la [Guida al Troubleshooting](TROUBLESHOOTING.md).
+
 ## 🔐 Configurazione Nginx Proxy Manager
 
 ### 1. Accedi all'Interfaccia Admin
+
+**⚠️ NOTA:** Se la porta 81 non è accessibile, aprila temporaneamente:
+
+```bash
+sudo ufw allow 81/tcp
+```
 
 Apri nel browser: `http://IP_DEL_TUO_VPS:81`
 
@@ -249,13 +281,17 @@ Dopo qualche secondo, i certificati Let's Encrypt verranno emessi automaticament
 - Vai su `https://app.tuodominio.com` → dovrebbe aprirsi n8n con HTTPS
 - Vai su `https://llm.tuodominio.com` → dovrebbe aprirsi AnythingLLM con HTTPS
 
+### 5. Chiudi la Porta 81 (Sicurezza)
+
+Dopo aver configurato tutto:
+
+```bash
+sudo ufw delete allow 81/tcp
+```
+
 **Troubleshooting Let's Encrypt:**
 
-Se vedi errori tipo "Some challenges have failed":
-1. Verifica che i record DNS puntino all'IP corretto: `dig app.tuodominio.com`
-2. Verifica che la porta 80 sia aperta: `sudo ufw status`
-3. Verifica che NON ci sia il proxy Cloudflare attivo (nuvola grigia, non arancione)
-4. Controlla i log: `docker compose logs reverse-proxy`
+Se vedi errori tipo "Some challenges have failed", consulta la [Guida al Troubleshooting](TROUBLESHOOTING.md#4-certificati-lets-encrypt-non-si-generano).
 
 ## 💾 Backup Automatico
 
@@ -354,14 +390,23 @@ Lo script:
 - Estrae i backup nelle directory corrette
 - Pulisce i file temporanei
 
-**3. Avvia i container:**
+**3. Imposta i permessi corretti:**
 
 ```bash
 cd /opt/ai-saas-stack
+sudo chown -R 1000:1000 n8n/data
+sudo chown -R 1000:1000 anythingllm/storage
+sudo chmod -R 755 n8n/data
+sudo chmod -R 755 anythingllm/storage
+```
+
+**4. Avvia i container:**
+
+```bash
 docker compose up -d
 ```
 
-**4. Riconfigura Nginx Proxy Manager:**
+**5. Riconfigura Nginx Proxy Manager:**
 
 Accedi a `http://IP_NUOVO_VPS:81` e ricrea i Proxy Host per i tuoi domini (i certificati Let's Encrypt vanno riemessi perché sono legati al server).
 
@@ -419,65 +464,61 @@ Verifica le nuove versioni:
 
 ## 🔍 Diagnostica e Troubleshooting
 
-### Verificare lo Stato dei Container
+### Quick Debug
 
 ```bash
+# Verifica stato container
 docker compose ps
-```
 
-### Vedere i Log in Tempo Reale
-
-```bash
-# Tutti i servizi
+# Vedi i log in tempo reale
 docker compose logs -f
 
-# Solo un servizio specifico
-docker compose logs -f n8n
-docker compose logs -f anythingllm
-docker compose logs -f reverse-proxy
-```
-
-### Riavviare un Servizio
-
-```bash
+# Riavvia un servizio problematico
 docker compose restart n8n
 ```
 
-### Riavviare Tutto lo Stack
-
-```bash
-docker compose restart
-```
-
-### Fermare e Rimuovere Tutto
-
-```bash
-docker compose down
-```
-
-**⚠️ ATTENZIONE:** Questo comando ferma i container ma NON elimina i dati persistenti (volumi). I tuoi dati in `n8n/data` e `anythingllm/storage` rimangono intatti.
-
 ### Problemi Comuni
 
-**n8n non si connette:**
-- Verifica che il Proxy Host in Nginx Proxy Manager punti a `n8n:5678`
-- Controlla i log: `docker compose logs n8n`
-- Verifica le variabili nel .env
+**Errore 502 Bad Gateway:**
+- Verifica che i container siano UP: `docker compose ps`
+- Controlla i log: `docker compose logs n8n` o `docker compose logs anythingllm`
+- Probabilmente è un problema di permessi (vedi sotto)
 
-**AnythingLLM errore di avvio:**
-- Controlla che `JWT_SECRET` ed `ENCRYPTION_KEY` siano impostati
-- Verifica permessi sulla cartella: `ls -la anythingllm/storage`
-- Log: `docker compose logs anythingllm`
+**Container in restart loop (n8n o AnythingLLM):**
 
-**Certificato SSL non si genera:**
+```bash
+# Ferma i container
+docker compose down
+
+# Correggi i permessi
+sudo chown -R 1000:1000 n8n/data
+sudo chown -R 1000:1000 anythingllm/storage
+sudo chmod -R 755 n8n/data
+sudo chmod -R 755 anythingllm/storage
+
+# Riavvia
+docker compose up -d
+```
+
+**Certificati SSL non si generano:**
 - Verifica DNS: `dig app.tuodominio.com`
-- Verifica che la porta 80 sia aperta: `sudo netstat -tlnp | grep :80`
-- Disattiva temporaneamente il proxy Cloudflare
-- Log: `docker compose logs reverse-proxy`
+- Verifica porta 80 aperta: `sudo ufw status`
+- Disattiva proxy Cloudflare (temporaneamente)
+- Controlla log: `docker compose logs reverse-proxy`
 
-**Docker non trovato:**
-- Esegui lo script di installazione: `./install-docker.sh`
-- Oppure installa manualmente seguendo la sezione "Installazione Docker"
+### 📚 Guida Completa al Troubleshooting
+
+Per una guida dettagliata con soluzioni a tutti i problemi comuni, consulta:
+
+➡️ **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**
+
+La guida copre:
+- Errori di permessi (n8n e AnythingLLM)
+- Problemi con certificati SSL
+- Configurazione DNS
+- Problemi di rete Docker
+- Script di backup
+- Comandi di debug avanzati
 
 ## 🔒 Sicurezza
 
@@ -489,6 +530,7 @@ docker compose down
 ✅ Chiavi di encryption uniche per ogni installazione  
 ✅ Log rotation automatica (max 10MB × 3 file)  
 ✅ Backup criptati su Google Drive  
+✅ Container eseguiti con utente non-root (UID 1000)  
 
 ### Raccomandazioni Aggiuntive
 
@@ -547,6 +589,7 @@ docker compose down
 │                     │      │                              │
 │  Volume:            │      │  Volume:                     │
 │  ./n8n/data         │      │  ./anythingllm/storage       │
+│  Owner: 1000:1000   │      │  Owner: 1000:1000            │
 └─────────────────────┘      └──────────────────────────────┘
              │                           │
              └───────────┬───────────────┘
@@ -564,6 +607,10 @@ Per problemi specifici ai servizi:
 - n8n: https://community.n8n.io/
 - AnythingLLM: https://github.com/Mintplex-Labs/anything-llm/issues
 - Nginx Proxy Manager: https://github.com/NginxProxyManager/nginx-proxy-manager/issues
+
+Per problemi con questo stack:
+- [Guida Troubleshooting](TROUBLESHOOTING.md)
+- [GitHub Issues](https://github.com/moldav69/ai-saas-stack/issues)
 
 ## 🤝 Contribuire
 
