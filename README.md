@@ -14,6 +14,7 @@ Stack Docker completo per VPS Ubuntu con **n8n**, **AnythingLLM**, **Nginx Proxy
 - 💾 **Backup automatici**: Script pronti per backup giornalieri su Google Drive via rclone
 - 🔄 **Disaster Recovery**: Script di restore completo per ripristino rapido su nuovo server
 - 📦 **One-command deploy**: Basta un `docker compose up -d` dopo la configurazione
+- 🐳 **Script di installazione Docker**: Installazione automatica di Docker Engine per Ubuntu
 
 ## 📋 Prerequisiti
 
@@ -83,6 +84,49 @@ rclone ls gdrive:vps-backups
 - **Password**: Usa password complesse e uniche per ogni servizio
 
 ## 🚀 Installazione
+
+### 0. Installazione Docker (se non presente)
+
+Se Docker non è installato sul tuo VPS, usa lo script automatico incluso:
+
+```bash
+cd /opt
+git clone https://github.com/moldav69/ai-saas-stack.git
+cd ai-saas-stack
+
+# Rendi eseguibile lo script
+chmod +x install-docker.sh
+
+# Esegui l'installazione
+./install-docker.sh
+```
+
+Lo script installerà automaticamente:
+- Docker Engine (ultima versione)
+- Docker Compose plugin
+- Configurazione per avvio automatico
+
+**Installazione manuale Docker:**
+
+Se preferisci installare manualmente:
+
+```bash
+# Aggiungi repository Docker
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Installa Docker
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# Avvia Docker
+sudo systemctl enable docker
+sudo systemctl start docker
+
+# Verifica
+docker --version
+docker compose version
+```
 
 ### 1. Clona la Repository
 
@@ -274,9 +318,14 @@ Se devi migrare o ripristinare lo stack su un nuovo server:
 **1. Prepara il nuovo VPS:**
 
 ```bash
-# Installa Docker
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
+# Clona la repository
+cd /opt
+git clone https://github.com/moldav69/ai-saas-stack.git
+cd ai-saas-stack
+
+# Installa Docker (se non presente)
+chmod +x install-docker.sh
+./install-docker.sh
 
 # Installa rclone
 curl https://rclone.org/install.sh | sudo bash
@@ -285,19 +334,7 @@ curl https://rclone.org/install.sh | sudo bash
 rclone config
 ```
 
-**2. Clona la repository:**
-
-```bash
-cd /opt
-git clone https://github.com/moldav69/ai-saas-stack.git
-cd ai-saas-stack
-```
-
-**3. Opzionale - Crea un .env minimo (o lo ripristini dal backup):**
-
-Se vuoi ripristinare anche il file .env dal backup, puoi saltare questo passaggio.
-
-**4. Esegui il restore:**
+**2. Esegui il restore:**
 
 ```bash
 cd backups
@@ -317,14 +354,14 @@ Lo script:
 - Estrae i backup nelle directory corrette
 - Pulisce i file temporanei
 
-**5. Avvia i container:**
+**3. Avvia i container:**
 
 ```bash
 cd /opt/ai-saas-stack
 docker compose up -d
 ```
 
-**6. Riconfigura Nginx Proxy Manager:**
+**4. Riconfigura Nginx Proxy Manager:**
 
 Accedi a `http://IP_NUOVO_VPS:81` e ricrea i Proxy Host per i tuoi domini (i certificati Let's Encrypt vanno riemessi perché sono legati al server).
 
@@ -437,6 +474,10 @@ docker compose down
 - Verifica che la porta 80 sia aperta: `sudo netstat -tlnp | grep :80`
 - Disattiva temporaneamente il proxy Cloudflare
 - Log: `docker compose logs reverse-proxy`
+
+**Docker non trovato:**
+- Esegui lo script di installazione: `./install-docker.sh`
+- Oppure installa manualmente seguendo la sezione "Installazione Docker"
 
 ## 🔒 Sicurezza
 
