@@ -66,6 +66,7 @@ services:
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - SERVER_PORT=3001
+      - DISABLE_TELEMETRY=${DISABLE_TELEMETRY:-true}
     # cap_add:
     #   - SYS_ADMIN  # Opzionale: necessario solo per alcune funzionalità avanzate (browser embedding)
     depends_on:
