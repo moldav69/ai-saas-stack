@@ -25,7 +25,7 @@ Stack Docker completo per VPS Ubuntu con **n8n**, **AnythingLLM**, **Nginx Proxy
 - 🔄 **Disaster Recovery**: Script di restore completo per ripristino rapido su nuovo server
 - 📦 **One-command deploy**: Basta un `docker compose up -d` dopo la configurazione
 - 🐳 **Script di installazione**: Installazione automatica di Docker e rclone per Ubuntu
-- 📦 **Versioni pinnate**: n8n 2.7.5, AnythingLLM 1.9.0, Nginx PM 2.12.6 (deploy riproducibili)
+- 📦 **Versioni auto-update**: n8n 2.7.5, AnythingLLM latest, Nginx PM 2.12.6
 
 ## 📋 Prerequisiti
 
@@ -91,18 +91,35 @@ cp .env.example .env
 nano .env
 ```
 
-Genera chiavi sicure:
+**⚠️ SICUREZZA CRITICA:**
+
+Genera chiave per n8n:
 ```bash
 openssl rand -hex 32  # N8N_ENCRYPTION_KEY
-openssl rand -hex 32  # JWT_SECRET
-openssl rand -hex 32  # ENCRYPTION_KEY
+```
+
+**Per AnythingLLM:**
+```bash
+# LASCIA JWT_SECRET e ENCRYPTION_KEY VUOTI nel .env!
+# Se inserisci valori, salti il wizard e CHIUNQUE può accedere come admin!
+# AnythingLLM ti chiederà di fare il setup via web UI al primo accesso.
+```
+
+**Nel .env:**
+```env
+# n8n - Genera e inserisci
+N8N_ENCRYPTION_KEY=<tua_chiave_generata>
+
+# AnythingLLM - LASCIA VUOTI! (sicurezza)
+JWT_SECRET=
+ENCRYPTION_KEY=
 ```
 
 ### 3. Fix Permessi Directory (⚠️ IMPORTANTE!)
 
 ```bash
-sudo chown -R 1000:1000 n8n/data anythingllm/storage
-sudo chmod -R 755 n8n/data anythingllm/storage
+sudo chown -R 1000:1000 n8n/ anythingllm/
+sudo chmod -R 755 n8n/ anythingllm/
 ```
 
 ### 4. Avvia lo Stack
@@ -117,7 +134,19 @@ Apri `http://IP_VPS:81` e crea i Proxy Host per:
 - `app.tuodominio.com` → `n8n:5678`
 - `llm.tuodominio.com` → `anythingllm:3001`
 
-### 6. Setup Backup
+### 6. Setup AnythingLLM (PRIMA VOLTA)
+
+**Apri:** `https://llm.tuodominio.com`
+
+Vedrai il **wizard di setup iniziale**:
+1. Crea account admin (username e password)
+2. Configura LLM provider (OpenAI, Ollama, ecc.)
+3. Configura embedding provider
+4. Crea primo workspace
+
+🔒 **Questo è l'unico modo sicuro per configurare AnythingLLM!**
+
+### 7. Setup Backup
 
 ```bash
 # Installa rclone
@@ -167,6 +196,9 @@ cd /opt/ai-saas-stack/backups && ./backup.sh
 
 # Verifica backup su Google Drive
 rclone ls gdrive:vps-backups
+
+# Reset AnythingLLM (se password dimenticata)
+./reset-anythingllm.sh
 ```
 
 ### Aggiornamenti
@@ -195,8 +227,8 @@ docker compose logs n8n
 docker compose logs anythingllm
 
 # Probabilmente permessi errati, riapplica:
-sudo chown -R 1000:1000 n8n/data anythingllm/storage
-sudo chmod -R 755 n8n/data anythingllm/storage
+sudo chown -R 1000:1000 n8n/ anythingllm/
+sudo chmod -R 755 n8n/ anythingllm/
 docker compose restart
 ```
 
@@ -206,11 +238,20 @@ docker compose restart
 docker compose down
 
 # Correggi permessi
-sudo chown -R 1000:1000 n8n/data anythingllm/storage
-sudo chmod -R 755 n8n/data anythingllm/storage
+sudo chown -R 1000:1000 n8n/ anythingllm/
+sudo chmod -R 755 n8n/ anythingllm/
 
 # Riavvia
 docker compose up -d
+```
+
+### AnythingLLM: Password Dimenticata
+```bash
+# Usa lo script di reset
+cd /opt/ai-saas-stack
+./reset-anythingllm.sh
+
+# Riapri browser e rifai il setup
 ```
 
 ### Certificati SSL Non si Generano
@@ -273,6 +314,14 @@ cd /opt/ai-saas-stack/backups
 ./restore.sh 2026-02-17-0300  # Backup specifico
 ```
 
+**⚠️ IMPORTANTE dopo restore:**
+
+Se ripristini un backup di AnythingLLM e non ricordi le credenziali:
+```bash
+cd /opt/ai-saas-stack
+./reset-anythingllm.sh
+```
+
 ---
 
 ## 🔒 Sicurezza
@@ -282,11 +331,21 @@ cd /opt/ai-saas-stack/backups
 ✅ Nessuna porta dei servizi esposta direttamente su Internet  
 ✅ HTTPS obbligatorio con certificati Let's Encrypt  
 ✅ Autenticazione Basic per n8n  
+✅ Setup wizard obbligatorio per AnythingLLM (sicurezza)  
 ✅ Chiavi di encryption uniche per ogni installazione  
 ✅ Log rotation automatica (max 10MB × 3 file)  
 ✅ Backup criptati su Google Drive (opzionale)  
 ✅ Container eseguiti con utente non-root (UID 1000)  
-✅ Versioni stabili pinnate (deploy riproducibili)  
+✅ Versioni stabili con auto-update  
+
+### 🚨 Avviso Sicurezza Critico
+
+**AnythingLLM:**
+
+❌ **MAI** inserire `JWT_SECRET` o `ENCRYPTION_KEY` nel `.env` prima del primo avvio!  
+✅ **SEMPRE** lasciare questi campi vuoti per forzare il wizard di setup  
+✅ Il wizard crea account admin con password sicura  
+❌ Se skippi il wizard, CHIUNQUE può accedere come admin!  
 
 ### Raccomandazioni Aggiuntive
 
@@ -307,18 +366,24 @@ sudo dpkg-reconfigure unattended-upgrades
 
 ---
 
-## 📦 Versioni Stabili
+## 📦 Versioni
 
-Questo stack usa versioni pinnate per garantire deploy riproducibili:
+Questo stack usa versioni stabili:
 
 | Applicazione | Versione | Note |
 |--------------|----------|------|
-| **n8n** | 2.7.5 | Ultima stable 2.7.x |
-| **AnythingLLM** | 1.9.0 | Stable con agent streaming |
-| **Nginx Proxy Manager** | 2.12.6 | Stable senza breaking changes |
+| **n8n** | 2.7.5 | Stable 2.7.x |
+| **AnythingLLM** | latest | Auto-update agli ultimi fix |
+| **Nginx Proxy Manager** | 2.12.6 | Stable |
 | **Docker Engine** | 29.x | (installato con install-docker.sh) |
 
-Per aggiornare a versioni più recenti, modifica `docker-compose.yml` e testa su ambiente di staging.
+Per aggiornare:
+```bash
+cd /opt/ai-saas-stack
+./backups/backup.sh  # Backup preventivo
+docker compose pull
+docker compose up -d
+```
 
 ---
 
