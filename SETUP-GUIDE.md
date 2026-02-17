@@ -183,29 +183,50 @@ BACKUP_RETENTION_DAYS=7
 
 ## 5. Fix Permessi Directory
 
-**⚠️ PASSO CRITICO:** I container Docker girano con l'utente UID 1000. Le directory di storage devono avere i permessi corretti **prima** di avviare i container.
+**⚠️ PASSO CRITICO:** I container Docker girano con l'utente UID 1000. Le directory di storage **e le loro directory padre** devono avere i permessi corretti **prima** di avviare i container.
+
+**Questo previene errori tipo:** `attempt to write a readonly database`
 
 ```bash
-# Imposta owner e permessi per n8n
-sudo chown -R 1000:1000 n8n/data
-sudo chmod -R 755 n8n/data
+# Imposta owner e permessi per n8n (inclusa directory padre)
+sudo chown -R 1000:1000 n8n/
+sudo chmod -R 755 n8n/
 
-# Imposta owner e permessi per AnythingLLM
-sudo chown -R 1000:1000 anythingllm/storage
-sudo chmod -R 755 anythingllm/storage
+# Imposta owner e permessi per AnythingLLM (inclusa directory padre)
+sudo chown -R 1000:1000 anythingllm/
+sudo chmod -R 755 anythingllm/
 
 # Verifica i permessi
-ls -la n8n/data
-ls -la anythingllm/storage
+ls -la n8n/
+ls -la anythingllm/
 ```
 
 **Output atteso:**
 ```
+drwxr-xr-x ... 1000 1000 ... n8n
 drwxr-xr-x ... 1000 1000 ... n8n/data
+
+drwxr-xr-x ... 1000 1000 ... anythingllm
 drwxr-xr-x ... 1000 1000 ... anythingllm/storage
 ```
 
-**✅ Se vedi `1000 1000` come owner, i permessi sono corretti!**
+**✅ Se vedi `1000 1000` come owner su TUTTE le directory, i permessi sono corretti!**
+
+**❌ Se vedi `root root` su qualche directory, i container non potranno scrivere!**
+
+---
+
+### Verifica Dettagliata Permessi
+
+```bash
+# Verifica ricorsiva n8n
+ls -laR n8n/ | head -20
+
+# Verifica ricorsiva AnythingLLM
+ls -laR anythingllm/ | head -20
+
+# Tutte le directory e file devono essere 1000:1000
+```
 
 ---
 
@@ -239,9 +260,48 @@ anythingllm            Up
 docker compose logs n8n
 docker compose logs anythingllm
 
-# Se vedi errori di permessi, torna allo Step 5
+# Se vedi errori di permessi tipo:
+# "EACCES: permission denied" o "attempt to write a readonly database"
+# Torna allo Step 5 e ricontrolla i permessi
+
 # Altrimenti consulta TROUBLESHOOTING.md
 ```
+
+### Errori Comuni e Fix Rapidi
+
+#### Errore: "attempt to write a readonly database"
+
+```bash
+# Ferma i container
+docker compose down
+
+# Fix permessi completi
+sudo chown -R 1000:1000 anythingllm/
+sudo chmod -R 755 anythingllm/
+
+# Verifica
+ls -la anythingllm/
+# Deve mostrare: drwxr-xr-x ... 1000 1000 ... anythingllm
+
+# Riavvia
+docker compose up -d
+```
+
+#### Errore: "EACCES: permission denied"
+
+```bash
+# Ferma i container
+docker compose down
+
+# Fix permessi completi
+sudo chown -R 1000:1000 n8n/ anythingllm/
+sudo chmod -R 755 n8n/ anythingllm/
+
+# Riavvia
+docker compose up -d
+```
+
+---
 
 ### Monitora i Log (Opzionale)
 
@@ -566,6 +626,10 @@ crontab -l | grep backup.sh
 # 5. Firewall configurato
 sudo ufw status
 # Porte 22, 80, 443 aperte
+
+# 6. Permessi corretti
+ls -la n8n/ anythingllm/ | grep 1000
+# Tutte le directory devono essere 1000:1000
 ```
 
 ---
@@ -592,6 +656,7 @@ Il tuo stack è ora:
 - ✅ Accessibile via HTTPS
 - ✅ Protetto con certificati SSL validi
 - ✅ Con backup automatici giornalieri
+- ✅ Permessi corretti (no errori ReadOnly)
 - ✅ Production-ready
 
 ---
@@ -599,6 +664,7 @@ Il tuo stack è ora:
 ## 📚 Documentazione Aggiuntiva
 
 - **[README.md](README.md)** - Panoramica generale e riferimento rapido
+- **[GDPR-ENCRYPTION.md](GDPR-ENCRYPTION.md)** - Guida encryption backup GDPR compliant
 - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Soluzioni a problemi comuni
 - **[Documentazione n8n](https://docs.n8n.io/)**
 - **[Documentazione AnythingLLM](https://docs.anythingllm.com/)**
@@ -625,6 +691,10 @@ docker compose logs -f
 
 # Verifica backup
 rclone ls gdrive:vps-backups
+
+# Fix permessi (se necessario)
+sudo chown -R 1000:1000 n8n/ anythingllm/
+sudo chmod -R 755 n8n/ anythingllm/
 ```
 
 ---
