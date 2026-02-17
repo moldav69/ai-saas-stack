@@ -9,6 +9,7 @@ Stack Docker completo per VPS Ubuntu con **n8n**, **AnythingLLM**, **Nginx Proxy
 ## 📚 Documentazione
 
 - **[SETUP-GUIDE.md](SETUP-GUIDE.md)** - 🚀 Guida completa step-by-step per il primo deploy (INIZIA DA QUI!)
+- **[SECURITY.md](SECURITY.md)** - 🔒 Guida sicurezza e privacy (telemetria, hardening)
 - **[GDPR-ENCRYPTION.md](GDPR-ENCRYPTION.md)** - 🔒 Guida encryption backup per conformità GDPR
 - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - 🔧 Soluzioni a problemi comuni
 - **README.md** (questo file) - Riferimento rapido e comandi utili
@@ -22,6 +23,7 @@ Stack Docker completo per VPS Ubuntu con **n8n**, **AnythingLLM**, **Nginx Proxy
 - 🔒 **Nginx Proxy Manager**: Reverse proxy con certificati SSL/TLS automatici (Let's Encrypt)
 - 💾 **Backup automatici**: Script pronti per backup giornalieri su Google Drive via rclone
 - 🔒 **GDPR Compliant**: Encryption end-to-end per backup con AES-256
+- 🔒 **Privacy-first**: Telemetria disabilitata di default
 - 🔄 **Disaster Recovery**: Script di restore completo per ripristino rapido su nuovo server
 - 📦 **One-command deploy**: Basta un `docker compose up -d` dopo la configurazione
 - 🐳 **Script di installazione**: Installazione automatica di Docker e rclone per Ubuntu
@@ -67,6 +69,7 @@ sudo ufw enable
 - **Aggiornamenti**: Mantieni il sistema aggiornato (`apt update && apt upgrade`)
 - **Password**: Usa password complesse e uniche per ogni servizio
 - **Backup GDPR**: Se elabori dati di utenti, configura [encryption backup](GDPR-ENCRYPTION.md)
+- **Privacy**: Telemetria disabilitata di default per AnythingLLM
 
 ---
 
@@ -113,6 +116,9 @@ N8N_ENCRYPTION_KEY=<tua_chiave_generata>
 # AnythingLLM - LASCIA VUOTI! (sicurezza)
 JWT_SECRET=
 ENCRYPTION_KEY=
+
+# Privacy - Telemetria disabilitata di default
+DISABLE_TELEMETRY=true
 ```
 
 ### 3. Fix Permessi Directory (⚠️ IMPORTANTE!)
@@ -324,7 +330,7 @@ cd /opt/ai-saas-stack
 
 ---
 
-## 🔒 Sicurezza
+## 🔒 Sicurezza e Privacy
 
 ### Best Practices Implementate
 
@@ -332,11 +338,24 @@ cd /opt/ai-saas-stack
 ✅ HTTPS obbligatorio con certificati Let's Encrypt  
 ✅ Autenticazione Basic per n8n  
 ✅ Setup wizard obbligatorio per AnythingLLM (sicurezza)  
+✅ **Telemetria disabilitata di default** (privacy)  
 ✅ Chiavi di encryption uniche per ogni installazione  
 ✅ Log rotation automatica (max 10MB × 3 file)  
 ✅ Backup criptati su Google Drive (opzionale)  
 ✅ Container eseguiti con utente non-root (UID 1000)  
 ✅ Versioni stabili con auto-update  
+
+### 🔒 Privacy: Telemetria Disabilitata
+
+**AnythingLLM telemetria è DISABILITATA di default** tramite:
+
+```env
+DISABLE_TELEMETRY=true
+```
+
+Questo previene l'invio di dati di utilizzo anonimi ai server di AnythingLLM.
+
+Per maggiori dettagli: **[SECURITY.md](SECURITY.md)**
 
 ### 🚨 Avviso Sicurezza Critico
 
@@ -408,10 +427,11 @@ docker compose up -d
 ┌─────────────────────┐      ┌──────────────────────────────┐
 │       n8n           │      │      AnythingLLM             │
 │  (Workflow Engine)  │      │  (Document AI Chat)          │
-│                     │      │                              │
-│  Volume:            │      │  Volume:                     │
-│  ./n8n/data         │      │  ./anythingllm/storage       │
-│  Owner: 1000:1000   │      │  Owner: 1000:1000            │
+│                     │      │  + Telemetria OFF 🔒        │
+│  Volume:            │      │                              │
+│  ./n8n/data         │      │  Volume:                     │
+│  Owner: 1000:1000   │      │  ./anythingllm/storage       │
+│                     │      │  Owner: 1000:1000            │
 └─────────────────────┘      └──────────────────────────────┘
              │                           │
              └───────────┬───────────────┘
@@ -429,6 +449,7 @@ docker compose up -d
 
 ### Documentazione
 - **[SETUP-GUIDE.md](SETUP-GUIDE.md)** - Guida completa step-by-step
+- **[SECURITY.md](SECURITY.md)** - Sicurezza e privacy (telemetria, hardening)
 - **[GDPR-ENCRYPTION.md](GDPR-ENCRYPTION.md)** - Encryption backup GDPR compliant
 - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Soluzioni a problemi comuni
 
@@ -468,4 +489,4 @@ Questo stack utilizza software open source. Verifica le licenze individuali:
 
 Lascia una ⭐ su GitHub! Aiuta altri a scoprire questo stack.
 
-**Creato con ❤️ per deployment rapidi e affidabili**
+**Creato con ❤️ per deployment rapidi, sicuri e privacy-first**
