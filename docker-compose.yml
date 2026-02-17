@@ -52,7 +52,7 @@ services:
         max-file: "3"
 
   anythingllm:
-    image: mintplexlabs/anythingllm:1.9.0
+    image: mintplexlabs/anythingllm:latest
     container_name: anythingllm
     restart: unless-stopped
     user: "1000:1000"
