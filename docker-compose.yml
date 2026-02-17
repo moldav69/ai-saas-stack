@@ -62,8 +62,6 @@ services:
       - ai_saas_net
     environment:
       - STORAGE_DIR=/app/server/storage
-      - JWT_SECRET=${JWT_SECRET}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - SERVER_PORT=3001
       - DISABLE_TELEMETRY=${DISABLE_TELEMETRY:-true}
