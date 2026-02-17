@@ -9,6 +9,7 @@ Stack Docker completo per VPS Ubuntu con **n8n**, **AnythingLLM**, **Nginx Proxy
 ## 📚 Documentazione
 
 - **[SETUP-GUIDE.md](SETUP-GUIDE.md)** - 🚀 Guida completa step-by-step per il primo deploy (INIZIA DA QUI!)
+- **[GDPR-ENCRYPTION.md](GDPR-ENCRYPTION.md)** - 🔒 Guida encryption backup per conformità GDPR
 - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - 🔧 Soluzioni a problemi comuni
 - **README.md** (questo file) - Riferimento rapido e comandi utili
 
@@ -20,9 +21,11 @@ Stack Docker completo per VPS Ubuntu con **n8n**, **AnythingLLM**, **Nginx Proxy
 - 🤖 **AnythingLLM**: Sistema di gestione documenti e chat con AI self-hosted
 - 🔒 **Nginx Proxy Manager**: Reverse proxy con certificati SSL/TLS automatici (Let's Encrypt)
 - 💾 **Backup automatici**: Script pronti per backup giornalieri su Google Drive via rclone
+- 🔒 **GDPR Compliant**: Encryption end-to-end per backup con AES-256
 - 🔄 **Disaster Recovery**: Script di restore completo per ripristino rapido su nuovo server
 - 📦 **One-command deploy**: Basta un `docker compose up -d` dopo la configurazione
 - 🐳 **Script di installazione**: Installazione automatica di Docker e rclone per Ubuntu
+- 📦 **Versioni pinnate**: n8n 2.7.5, AnythingLLM 1.9.0, Nginx PM 2.12.6 (deploy riproducibili)
 
 ## 📋 Prerequisiti
 
@@ -63,6 +66,7 @@ sudo ufw enable
 - **Firewall**: Apri SOLO le porte 22, 80, 443
 - **Aggiornamenti**: Mantieni il sistema aggiornato (`apt update && apt upgrade`)
 - **Password**: Usa password complesse e uniche per ogni servizio
+- **Backup GDPR**: Se elabori dati di utenti, configura [encryption backup](GDPR-ENCRYPTION.md)
 
 ---
 
@@ -122,6 +126,8 @@ chmod +x install-rclone.sh
 
 # Configura Google Drive
 rclone config
+
+# (Opzionale) Configura encryption GDPR - vedi GDPR-ENCRYPTION.md
 
 # Test backup
 cd backups
@@ -248,6 +254,17 @@ Aggiungi:
 0 3 * * * /opt/ai-saas-stack/backups/backup.sh >> /opt/ai-saas-stack/backups/backup.log 2>&1
 ```
 
+### Encryption GDPR-Compliant
+
+**Se elabori dati di clienti/utenti**, configura l'encryption end-to-end:
+
+🔒 **[Guida completa: GDPR-ENCRYPTION.md](GDPR-ENCRYPTION.md)**
+
+- Zero-knowledge encryption (AES-256)
+- Google non può leggere i dati
+- Filenames criptati
+- GDPR compliant
+
 ### Restore
 
 ```bash
@@ -267,8 +284,9 @@ cd /opt/ai-saas-stack/backups
 ✅ Autenticazione Basic per n8n  
 ✅ Chiavi di encryption uniche per ogni installazione  
 ✅ Log rotation automatica (max 10MB × 3 file)  
-✅ Backup criptati su Google Drive  
+✅ Backup criptati su Google Drive (opzionale)  
 ✅ Container eseguiti con utente non-root (UID 1000)  
+✅ Versioni stabili pinnate (deploy riproducibili)  
 
 ### Raccomandazioni Aggiuntive
 
@@ -286,6 +304,21 @@ sudo systemctl enable fail2ban
 sudo apt install unattended-upgrades
 sudo dpkg-reconfigure unattended-upgrades
 ```
+
+---
+
+## 📦 Versioni Stabili
+
+Questo stack usa versioni pinnate per garantire deploy riproducibili:
+
+| Applicazione | Versione | Note |
+|--------------|----------|------|
+| **n8n** | 2.7.5 | Ultima stable 2.7.x |
+| **AnythingLLM** | 1.9.0 | Stable con agent streaming |
+| **Nginx Proxy Manager** | 2.12.6 | Stable senza breaking changes |
+| **Docker Engine** | 29.x | (installato con install-docker.sh) |
+
+Per aggiornare a versioni più recenti, modifica `docker-compose.yml` e testa su ambiente di staging.
 
 ---
 
@@ -331,6 +364,7 @@ sudo dpkg-reconfigure unattended-upgrades
 
 ### Documentazione
 - **[SETUP-GUIDE.md](SETUP-GUIDE.md)** - Guida completa step-by-step
+- **[GDPR-ENCRYPTION.md](GDPR-ENCRYPTION.md)** - Encryption backup GDPR compliant
 - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Soluzioni a problemi comuni
 
 ### Community
