@@ -1,5 +1,3 @@
-version: '3.8'
-
 networks:
   ai_saas_net:
     driver: bridge
@@ -30,6 +28,7 @@ services:
     image: n8nio/n8n:latest
     container_name: n8n
     restart: unless-stopped
+    user: "1000:1000"
     volumes:
       - ./n8n/data:/home/node/.n8n
     networks:
@@ -56,6 +55,7 @@ services:
     image: mintplexlabs/anythingllm:latest
     container_name: anythingllm
     restart: unless-stopped
+    user: "1000:1000"
     volumes:
       - ./anythingllm/storage:/app/server/storage
     networks:
