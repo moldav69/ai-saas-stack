@@ -4,7 +4,7 @@ networks:
 
 services:
   reverse-proxy:
-    image: jc21/nginx-proxy-manager:2.12.6
+    image: jc21/nginx-proxy-manager:2.11.3
     container_name: nginx-proxy-manager
     restart: unless-stopped
     ports:
@@ -23,9 +23,14 @@ services:
         max-file: "3"
     environment:
       - DISABLE_IPV6=true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:81"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   n8n:
-    image: n8nio/n8n:2.7.5
+    image: n8nio/n8n:latest
     container_name: n8n
     restart: unless-stopped
     user: "1000:1000"
@@ -35,7 +40,7 @@ services:
       - ai_saas_net
     environment:
       - N8N_HOST=${N8N_HOST}
-      - N8N_PORT=${N8N_PORT}
+      - N8N_PORT=5678
       - N8N_PROTOCOL=${N8N_PROTOCOL}
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
       - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE}
@@ -44,12 +49,18 @@ services:
       - WEBHOOK_URL=https://${N8N_HOST}/
       - GENERIC_TIMEZONE=Europe/Rome
     depends_on:
-      - reverse-proxy
+      reverse-proxy:
+        condition: service_healthy
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5678/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   anythingllm:
     image: mintplexlabs/anythingllm:latest
@@ -62,17 +73,19 @@ services:
       - ai_saas_net
     environment:
       - STORAGE_DIR=/app/server/storage
-      - JWT_SECRET=${JWT_SECRET}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - SERVER_PORT=3001
-      - DISABLE_TELEMETRY=${DISABLE_TELEMETRY:-true}
-    # cap_add:
-    #   - SYS_ADMIN  # Opzionale: necessario solo per alcune funzionalità avanzate (browser embedding)
+      - DISABLE_TELEMETRY=true
     depends_on:
-      - reverse-proxy
+      reverse-proxy:
+        condition: service_healthy
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
