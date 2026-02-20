@@ -61,6 +61,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - SERVER_PORT=3001
       - DISABLE_TELEMETRY=${DISABLE_TELEMETRY:-true}
+      - TTS_PROVIDER=piper_local
       # opzionale, se poi vuoi attivare auth token semplice:
       # - AUTH_TOKEN=${ANYTHINGLLM_AUTH_TOKEN:-}
 
